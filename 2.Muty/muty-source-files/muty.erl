@@ -5,10 +5,10 @@
 
 start(Lock, Sleep, Work) ->
     Main = self(),
-    register(w1, worker:start("John", Main, Lock, 1, Sleep, Work)),
-    register(w2, worker:start("Ringo", Main, Lock, 2, Sleep, Work)),    
-    register(w3, worker:start("Paul", Main, Lock, 3, Sleep, Work)),
-    register(w4, worker:start("George", Main, Lock, 4, Sleep, Work)),
+    spawn('John@127.0.0.1',fun()->register(w1, worker:start("John", Main, Lock, 1, Sleep, Work)) end),
+    spawn('Ringo@127.0.0.1',fun()->register(w2, worker:start("Ringo", Main, Lock, 2, Sleep, Work)) end),
+    spawn('Paul@127.0.0.1',fun()->register(w3, worker:start("Paul", Main, Lock, 3, Sleep, Work)) end),
+    spawn('George@127.0.0.1',fun()->register(w4, worker:start("George", Main, Lock, 4, Sleep, Work)) end),
     collect(4, []).
 
 collect(N, Locks) ->
@@ -25,7 +25,7 @@ collect(N, Locks) ->
     end.
 
 stop() ->
-    w1 ! stop,
-    w2 ! stop,
-    w3 ! stop,
-    w4 ! stop.
+     {w1, 'John@127.0.0.1'}  ! stop,
+     {w2, 'Ringo@127.0.0.1'}  ! stop,
+     {w3, 'Paul@127.0.0.1'}  ! stop,
+     {w4, 'George@127.0.0.1'}  ! stop.
