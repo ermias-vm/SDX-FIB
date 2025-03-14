@@ -29,6 +29,7 @@ c(muty).
 c(worker).
 c(lock1).
 c(lock2).
+c(lock3).
 ```
 
 ## 4. Ejecutar Muty
@@ -50,6 +51,7 @@ Ejemplo:
 ```erlang
 muty:start(lock1, 1000, 2000).
 muty:start(lock2, 1000, 2000).
+muty:start(lock3, 1000, 2000).
 ```
 
 ## 5. Detener Muty

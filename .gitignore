@@ -2,4 +2,6 @@
 *.beam
 *.zip
 *.dump
+*.tar
+*.tar.gz
 comands.txt
