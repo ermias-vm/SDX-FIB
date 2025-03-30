@@ -1,4 +1,4 @@
-# Ejecución de Muty en Erlang
+# 🚀 Ejecución de Muty en Erlang
 
 ## 1. Iniciar los Workers
 
