@@ -25,6 +25,7 @@ Desde cualquier terminal anterior compila con estos comandos:
 ```erlang
 c(gms1).
 c(gms2).
+c(gms3).
 c(worker).
 c(groupy).
 c(gui).
@@ -39,6 +40,7 @@ Desde cualquier terminal uno de los siguientes comandos:
 ```erlang
 groupy:start(gms1, 2000).
 groupy:start(gms2, 2000).
+groupy:start(gms3, 2000).
 ```
 
 Parámetros:

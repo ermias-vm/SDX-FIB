@@ -43,8 +43,8 @@ leader(Name, Master, Slaves) ->
     end.
 
 % bcast procedure for MS4
-bcast(_, Msg, Nodes) ->
-    lists:foreach(fun(Node) -> Node ! Msg end, Nodes).
+%bcast(_, Msg, Nodes) ->
+%   lists:foreach(fun(Node) -> Node ! Msg end, Nodes).
 
 % bcast procedure for MS5
 bcast(Name, Msg, Nodes) ->
@@ -64,22 +64,29 @@ slave(Name, Master, Leader, Slaves, Ref) ->
         {mcast, Msg} ->
             Leader ! {mcast, Msg},
             slave(Name, Master, Leader, Slaves, Ref);
+
         {join, Peer} ->
             Leader ! {join, Peer},
             slave(Name, Master, Leader, Slaves, Ref);
+
         {msg, Msg} ->
             Master ! {deliver, Msg},
             slave(Name, Master, Leader, Slaves, Ref);
+
         {view, Leader, NewSlaves} ->
             slave(Name, Master, Leader, NewSlaves, Ref);
+
         {view, NewLeader, NewSlaves} ->
             erlang:demonitor(Ref, [flush]),
             NewRef = erlang:monitor(process, NewLeader),
             slave(Name, Master, NewLeader, NewSlaves, NewRef);
+
         {'DOWN', _Ref, process, Leader, _Reason} ->
             election(Name, Master, Slaves);
+
         stop ->
             ok;
+
         Error ->
             io:format("slave ~s: strange message ~w~n", [Name, Error])
     end.
@@ -90,6 +97,7 @@ election(Name, Master, Slaves) ->
         [Self|Rest] ->
             bcast(Name, {view, Self, Rest}, Rest),
             leader(Name, Master, Rest);
+
         [NewLeader|Rest] ->
             NewRef = erlang:monitor(process, NewLeader),
             slave(Name, Master, NewLeader, Rest, NewRef)
