@@ -29,7 +29,7 @@ server(Entries, TTL,  Domain, Parent) ->
             server(Entries, TTL,  Domain, Parent);
         {register, Name, Entry} ->
             io:format("Server: registered subdomain ~w~n", [Name]),
-	    NewEntries = entry:add(Name, Entry, Entries),
+	        NewEntries = entry:add(Name, Entry, Entries),
             server(NewEntries, TTL,  Domain, Parent);
         {deregister, Name} ->
             io:format("Server: deregistered subdomain ~w~n", [Name]),
@@ -43,7 +43,6 @@ server(Entries, TTL,  Domain, Parent) ->
             server(Entries, TTL,  Domain, Parent);
         stop ->
             io:format("Server: closing down~n", []),
-            %% /= significa not equal to (!= en C)
             if Domain /= root ->
                 Parent ! {deregister, Domain},
                 ok;
