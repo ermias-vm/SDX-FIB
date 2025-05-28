@@ -93,8 +93,8 @@ stabilize(Pred, Next, MyKey, Successor) ->
       {Xkey, Xpid} ->
             case key:between(Xkey, MyKey, Skey) of
                 true ->
-                    self() ! stabilize,
                     demonit(Sref),
+                    Xpid ! {notify, {MyKey, self()}},
                     {{Xkey, monit(Xpid), Xpid}, {Skey, Spid}};
                 false ->
                     Spid ! {notify, {MyKey, self()}},
@@ -171,11 +171,7 @@ down(Ref, {_, Ref, _}, Successor, Next) ->
     {nil, Successor, Next}; 
 down(Ref, Predecessor, {_, Ref, _}, {Nkey, Npid}) ->
     self() ! stabilize,
-    %% No es {Nkey, monit(Npid), Npid},
-    %% No es {Nkey, Npid},
-    %% No {Nkey, Ref, Npid},
-    %% No em deixa {Nkey, _, Npid},
-    {Predecessor, {Nkey, nil, Npid} , nil}. %%ESTA MAL
+    {Predecessor, {Nkey, monit(Npid), Npid}, nil}.
     
 create_probe(MyKey, {_, _, Spid} , Store) ->
     Spid ! {probe, MyKey, [MyKey], erlang:monotonic_time()},
