@@ -15,18 +15,18 @@ init(MyKey, PeerPid) ->
     Predecessor = nil,
     {ok, Successor} = connect(MyKey, PeerPid),
     schedule_stabilize(),
-    Next = %% ADD
-    Store =  %%ADD
+    Next = nil,
+    Store =  storage:create(),
     node(MyKey, Predecessor, Successor, Next, Store).
 
 connect(MyKey, nil) ->
-    {ok, {%%ADD,%%ADD ,%%ADD}};
+    {ok, {MyKey, monit(self()) , self()}};
 connect(_, PeerPid) ->
     Qref = make_ref(),
     PeerPid ! {key, Qref, self()},
     receive
         {Qref, Skey} ->
-            {ok, {%%ADD,%%ADD ,%%ADD}};
+            {ok, {Skey, monit(PeerPid) , PeerPid}}
     after ?Timeout ->
         io:format("Timeout: no response from ~w~n", [PeerPid])
     end.
@@ -40,13 +40,13 @@ node(MyKey, Predecessor, Successor, Next, Store) ->
             Peer ! {Qref, MyKey},
             node(MyKey, Predecessor, Successor, Next, Store);
         {notify, NewPeer} ->
-            {NewPredecessor, NewStore} = notify(NewPeer, MyKey, Predecessor, Store), %%added
+            {NewPredecessor, NewStore} = notify(NewPeer, MyKey, Predecessor, Store),
             node(MyKey, NewPredecessor, Successor, Next, NewStore);
         {request, Peer} ->
             request(Peer, Predecessor, Successor),
             node(MyKey, Predecessor, Successor, Next, Store);
         {status, Pred, Nx} ->
-            %%ADD = stabilize(Pred, Nx, MyKey, Successor),
+            {NewSuccessor, NewNext} = stabilize(Pred, Nx, MyKey, Successor),
             node(MyKey, Predecessor, NewSuccessor, NewNext, Store);
         stabilize ->
             stabilize(Successor),
@@ -83,33 +83,33 @@ stabilize(Pred, Next, MyKey, Successor) ->
   {Skey, Sref, Spid} = Successor,
   case Pred of
       nil ->
-          %% ADD
+          Spid ! {notify, {MyKey, self()}},
           {Successor, Next};
       {MyKey, _} ->
           {Successor, Next};
       {Skey, _} ->
-          %% ADD
+          Spid ! {notify, {MyKey, self()}},
           {Successor, Next};
       {Xkey, Xpid} ->
             case key:between(Xkey, MyKey, Skey) of
                 true ->
-                    %% ADD linea 1
-                    %% ADD linea 2
-                    %% ADD linea 3
+                    self() ! stabilize,
+                    demonit(Sref),
+                    {{Xkey, monit(Xpid), Xpid}, {Skey, Spid}};
                 false ->
-                    %% ADD linea 1
-                    %% ADD linea 2
+                    Spid ! {notify, {MyKey, self()}},
+                    {Successor, Next}
             end
     end.
 
-stabilize( %%ADD ) ->
+stabilize({_, _, Spid}) -> 
     Spid ! {request, self()}.
 
-request(Peer, Predecessor, %% ADD) ->
+request(Peer, Predecessor, {Skey, _, Spid}) ->
     case Predecessor of
         nil ->
             Peer ! {status, nil, {Skey, Spid}};
-            %% ADD ->
+        {Pkey, _, Ppid} ->
             Peer ! {status, {Pkey, Ppid}, {Skey, Spid}}
     end.
 
@@ -117,45 +117,45 @@ notify({Nkey, Npid}, MyKey, Predecessor, Store) ->
     case Predecessor of
         nil ->
             Keep = handover(Store, MyKey, Nkey, Npid),
-            %% ADD
+            {{Nkey, monit(Npid), Npid}, Keep};
         {Pkey, Pref, _} ->
             case key:between(Nkey, Pkey, MyKey) of
                 true ->
-                    Keep = %% ADD
-                    %% ADD
-                    %% ADD
+                    Keep = handover(Store, MyKey, Nkey, Npid),
+                    demonit(Pref),
+                    {{Nkey, monit(Npid), Npid}, Keep};
                 false -> 
-                    %% ADD
+                    {Predecessor, Store}
             end
     end.
 
-add(Key, Value, Qref, Client, _, nil, %% aDD, Store) ->
-    %% ADD
+add(Key, Value, Qref, Client, _, nil, {_, _, Spid}, Store) ->
+    Spid ! {add, Key, Value, Qref, Client},
     Store;
-add(Key, Value, Qref, Client, MyKey, %% ADD, %%ADD , Store) ->
-    case key:between(%%add, %%add, %%add) of
+add(Key, Value, Qref, Client, MyKey, {Pkey, _, _}, {_, _, Spid}, Store) ->
+    case key:between(Key, Pkey, MyKey) of
         true ->
-              Added = %% ADD, 
+              Added = storage:add(Key, Value, Store),
               Client ! {Qref, ok},
               Added;
         false ->
-              %% ADD
+              Spid ! {add, Key, Value, Qref, Client},
               Store
     end.
     
-lookup(Key, Qref, Client, _, nil, %% ADD, _) ->
-    %% ADD;
-lookup(Key, Qref, Client, MyKey, %%ADD, %%ADD , Store) ->
-    case key:between(%%add, %%add, %%add) of
+lookup(Key, Qref, Client, _, nil, {_, _, Spid}, _) ->
+    Spid ! {lookup, Key, Qref, Client};
+lookup(Key, Qref, Client, MyKey, {Pkey, _, _}, {_, _, Spid}, Store) ->
+    case key:between(Key, Pkey, MyKey) of
         true ->
-            Result = %% ADD,
+            Result = storage:lookup(Key, Store),
             Client ! {Qref, Result};
         false ->
-            %% ADD
+            Spid ! {lookup, Key, Qref, Client}
     end.
     
 handover(Store, MyKey, Nkey, Npid) ->
-    {Keep, Leave} = %% ADD,
+    {Keep, Leave} = storage:split(MyKey, Nkey, Store),
     Npid ! {handover, Leave},
     Keep.
 
@@ -170,10 +170,14 @@ demonit(MonitorRef) ->
 down(Ref, {_, Ref, _}, Successor, Next) ->
     {nil, Successor, Next}; 
 down(Ref, Predecessor, {_, Ref, _}, {Nkey, Npid}) ->
-    %% ADD
-    {Predecessor, %%ADD , nil}.
+    self() ! stabilize,
+    %% No es {Nkey, monit(Npid), Npid},
+    %% No es {Nkey, Npid},
+    %% No {Nkey, Ref, Npid},
+    %% No em deixa {Nkey, _, Npid},
+    {Predecessor, {Nkey, nil, Npid} , nil}. %%ESTA MAL
     
-create_probe(MyKey, %% ADD , Store) ->
+create_probe(MyKey, {_, _, Spid} , Store) ->
     Spid ! {probe, MyKey, [MyKey], erlang:monotonic_time()},
     io:format("Node ~w created probe -> Store: ~w~n", [MyKey, Store]).
 	
@@ -182,6 +186,6 @@ remove_probe(MyKey, Nodes, T) ->
     Time = erlang:convert_time_unit(T2-T, native, microsecond),
     io:format("Node ~w received probe after ~w us -> Ring: ~w~n", [MyKey, Time, Nodes]).
 	
-forward_probe(MyKey, RefKey, Nodes, T, %% ADD, Store) ->
+forward_probe(MyKey, RefKey, Nodes, T, {_, _, Spid}, Store) ->
     Spid ! {probe, RefKey, Nodes, T},
     io:format("Node ~w forwarded probe started by node ~w -> Store: ~w~n", [MyKey, RefKey, Store]).
