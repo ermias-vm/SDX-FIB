@@ -27,6 +27,7 @@ c(chordy).
 c(node1).
 c(node2).
 c(node3).
+c(node4).
 ```
 
 
@@ -123,6 +124,57 @@ N4 ! stop.
 N2 ! probe.
 ```
 
+### Node4 - Replicación y Tolerancia a Fallos Avanzada
+
+Prueba replicación automática y recuperación robusta:
+
+```erlang
+% Crear anillo con replicación
+N2 = node4:start(2).
+N4 = node4:start(4, N2).
+N0 = node4:start(0, N2).
+N3 = node4:start(3, N2).
+N1 = node4:start(1, N2).
+
+% Comprobar anillo inicial y réplicas
+N2 ! probe.
+
+% Conectar cliente para operaciones de almacenamiento
+P = chordy:connect(N2).
+
+% Añadir datos que se replicarán automáticamente
+P ! {add, 10, "dato_10"}.
+P ! {add, 20, "dato_20"}.
+P ! {add, 30, "dato_30"}.
+
+% Verificar distribución y replicación
+N2 ! probe.
+
+% Simular fallo de nodo que almacena datos
+N1 ! stop.
+
+% Verificar que los datos persisten por replicación
+P ! {lookup, 10}.
+N2 ! probe.
+
+% Simular múltiples fallos para probar robustez
+N3 ! stop.
+N2 ! probe.
+
+% Los datos deben seguir disponibles
+P ! {lookup, 20}.
+P ! {lookup, 30}.
+
+% Añadir nuevo nodo para ver redistribución automática
+N5 = node4:start(5, N2).
+N2 ! probe.
+
+% Verificar que las réplicas se redistribuyen
+P ! {add, 40, "dato_40"}.
+P ! {lookup, 40}.
+N2 ! probe.
+```
+
 
 ## Funciones y Mensajes Clave
 
@@ -137,7 +189,7 @@ N2 ! probe.
 - `stop` - Detener un nodo de forma elegante
 
 ### Mensajes de Replicación (Node4)
-- `{replicate, Key, Value}` - Replicar datos al sucesor
+- `{replicate, Key, Value, Qref, Client}` - Replicar datos con confirmación al cliente
 - `{pushreplica, NewReplica}` - Enviar réplica completa al sucesor
 - `{handover, Elements}` - Transferir responsabilidad por rango de claves
 
@@ -149,9 +201,12 @@ N2 ! probe.
 - Los nuevos nodos automáticamente se hacen cargo de parte del espacio de claves
 
 ### Tolerancia a Fallos
-- Los nodos monitorean su predecesor y sucesor
-- Los nodos fallidos se detectan y el anillo se repara automáticamente
-- La replicación asegura persistencia de datos durante fallos
+- Los nodos monitorean su predecesor y sucesor usando referencias de monitor
+- Los nodos fallidos se detectan automáticamente vía mensajes `{'DOWN', Ref, process, _, _}`
+- El anillo se repara automáticamente redirigiendo las conexiones
+- **Node4**: La replicación asegura persistencia de datos durante fallos múltiples
+- **Node4**: Cada nodo mantiene una réplica de los datos de su predecesor
+- **Node4**: Al detectar un fallo, el nodo fusiona su almacén principal con la réplica
 
 ### Estabilización
 - La estabilización periódica mantiene la integridad del anillo
