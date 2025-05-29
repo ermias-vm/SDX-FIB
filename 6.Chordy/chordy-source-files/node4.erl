@@ -147,8 +147,8 @@ add(Key, Value, Qref, Client, MyKey, {Pkey, _, _}, {_, _, Spid}, Store) ->
     case key:between(Key, Pkey, MyKey) of
         true ->
             Added = storage:add(Key, Value, Store),
-            true,                                         % FIX
-            Spid ! {replicate, Key, Value, Qref, Client}, %FIX
+            Spid ! {replicate, Key, Value, Qref, Client},
+            %Client ! {Qref, ok},
             Added;
         false ->
             Spid ! {add, Key, Value, Qref, Client},
